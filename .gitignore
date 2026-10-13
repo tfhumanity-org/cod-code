@@ -1,0 +1,5 @@
+.extracted/
+.harness-audit/
+__pycache__/
+.DS_Store
+.private/
