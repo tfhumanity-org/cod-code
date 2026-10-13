@@ -26,6 +26,7 @@ Each spec file follows the same outline: 1 Purpose & scope · 2 Concepts & data 
 | 08 | [desktop-coding-features](08-desktop-coding-features.md) | GUI host around the engine: start options, permission broker with nonces, host hooks, rewind, pre-warming, CI auto-fix, prompt-fragment contracts |
 | 09 | [computer-use](09-computer-use.md) | computer-use tool surface, grants and tiers, safety gates, coordinates and token budget, dispatch pipeline |
 | 10 | [computer-use-native](10-computer-use-native.md) | native capture, input injection, AX-first dispatch, OS permissions, indicators, supervised helper |
+| Δ | [CHANGES-2.1.236-to-2.1.295](CHANGES-2.1.236-to-2.1.295.md) | how the harness evolved across 59 builds: 56 behaviour changes with design lessons |
 
 ## Architecture overview
 

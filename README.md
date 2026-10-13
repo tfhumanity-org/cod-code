@@ -7,6 +7,10 @@
 - **`audit/`:** a gated **Explore → Plan → Execute** playbook, a 15-dimension rubric, subagent briefs and output templates. A coding agent uses them to audit your harness and ship improvements.
 - **`tools/extract/` + [`EXPLORE.md`](EXPLORE.md):** unpack *your own installed copy* to dig for more. Nothing proprietary is hosted here.
 
+## How the harness evolved
+
+[`spec/CHANGES-2.1.236-to-2.1.295.md`](spec/CHANGES-2.1.236-to-2.1.295.md) compares two builds 59 releases apart and describes 56 behaviour changes, each with the design lesson behind it. Across those builds the public surface barely moved. The work went into reliability (sleep-aware watchdogs, a declarative policy for streams that fail part-way), cache economics (compaction timed to cache expiry, change-only context updates), depth of safety checks and multi-agent hygiene.
+
 ## Poke through the clean-room harness
 
 ```bash

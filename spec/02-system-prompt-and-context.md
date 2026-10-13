@@ -181,6 +181,7 @@ metadata:
 - **R19 Conditional rules.** A rules file with `paths:` frontmatter (globs, with a trailing `/**` normalised away) MUST be deferred. It is loaded when a tool touches a matching path, matched with gitignore semantics. *Confidence: observed.*
 - **R20 Nested instruction files.** When a tool reads or writes a file, record its path. On the next turn, walk from that file's directory up to the cwd and emit `nested_memory` attachments for any instruction files found. Files that permissions deny become `withheld_memory`. *Confidence: observed.*
 - **R21 Exclusions.** The `claudeMdExcludes` setting holds globs that apply to User, Project and Local files. An excluded parent also excludes its imports. `CLAUDE_CODE_DISABLE_CLAUDE_MDS` disables loading entirely. AGENTS.md is detected but not loaded. *Confidence: observed (no load path found for AGENTS.md).*
+- **R21a Cross-tool instruction file.** A built-in, default-on extension loads the cross-tool `AGENTS.md` file, using the same discovery, precedence and placement as `CLAUDE.md`. It has three modes, selectable by setting: native file only; native file **or** `AGENTS.md` (the default, where a directory with no `CLAUDE.md` contributes its `AGENTS.md` instead); and both, de-duplicated when the contents match. Earlier builds only detected the file (for read and edit protection) and never loaded it. Confidence: observed.
 
 ### Auto-memory
 - **R22 Location.** The default location is `<configDir>/projects/<sanitized canonical git root>/memory/`. It can be overridden by the `autoMemoryDirectory` setting, read from policy, then flag, then trusted local or project settings, then user settings. *Confidence: observed.*
@@ -400,6 +401,6 @@ def skill_listing(skills, window=200_000, frac=0.01):
 - Several session sections are delivered by remote configuration, and their content was not available.
 - The full text of the memory-section formatter and the SDK static-memory section was not reviewed.
 - Which attachments are re-emitted after compaction is only partly known.
-- No AGENTS.md loader was found. One may exist behind a plugin or a future option.
+- *(Corrected in spec revision 2.)* An AGENTS.md loader does exist. See R21a. The first analysis missed it because it is delivered as a built-in plugin rather than in the core instruction loader.
 - The scoring of the index-based memory search and its relevance floor are unknown.
 - Whether the desktop host actually uses the section and compose override seams is unverified.
