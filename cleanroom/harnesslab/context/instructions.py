@@ -1,4 +1,4 @@
-"""Instruction-file (CLAUDE.md) discovery, imports, conditional rules (WP4).
+"""Instruction-file (CLAUDE.md / AGENTS.md) discovery, imports, conditional rules (WP4).
 
 Implements spec 02 §2.5, R15 (load order Managed -> User -> Project/Local root
 to cwd -> --add-dir (opt-in env) -> AutoMem; worktree skip rule), R16
@@ -10,9 +10,27 @@ from GFM text nodes only, never code spans/blocks; HTML comments stripped;
 path; external includes need approval except from User files), R18 (4 MiB
 skip; warn-only size limits), R19 (``paths:`` frontmatter rules deferred until a
 tool touches a matching path, gitignore semantics), R20 (nested instruction
-files near touched paths -> ``nested_memory``; permission-denied ->
-``withheld_memory``), R21 (``claudeMdExcludes``; ``CLAUDE_CODE_DISABLE_CLAUDE_MDS``;
-AGENTS.md detected but not loaded); takeaway 02#T6.
+files near touched paths, AGENTS.md per R21a, -> ``nested_memory``; permission-denied ->
+``withheld_memory``), R21 (``claudeMdExcludes``; ``CLAUDE_CODE_DISABLE_CLAUDE_MDS``),
+R21a (cross-tool ``AGENTS.md``, spec revision 2); takeaway 02#T6.
+
+AGENTS.md (02 R21a). The ``agentsMd`` setting picks one of three modes:
+
+* ``"claude-md"`` - native files only; AGENTS.md is merely recorded in
+  ``ctx.extra["agents_md_detected"]`` (the pre-revision-2 behaviour);
+* ``"claude-md-or-agents-md"`` (default; also used for unknown values) - in each
+  directory with neither ``CLAUDE.md`` nor ``.claude/CLAUDE.md``, its AGENTS.md
+  is loaded in their place;
+* ``"claude-md-and-agents-md"`` - both are loaded; AGENTS.md sits just before the
+  directory's native files (so the native file, coming later, wins conflicts).
+
+A loaded AGENTS.md is an ordinary ``Project`` file: same root->cwd walk, worktree
+skip, ``--add-dir`` handling, provenance label, ``@imports``, size limits,
+``claudeMdExcludes`` and nested (R20) loading. Duplicates are dropped: an AGENTS.md
+whose real path or (whitespace-trimmed) content matches an earlier file, an
+import, or a native file in the same directory is not sent. ``claudeMdExcludes``
+now also filters nested (R20) files, AGENTS.md or not. ``ctx.extra["agents_md_detected"]``
+still lists every AGENTS.md seen on the root->cwd walk, whatever the mode.
 
 Design choices:
 
@@ -60,6 +78,14 @@ TEXT_EXTENSIONS = frozenset(
 )
 INSTRUCTION_NAMES = ("CLAUDE.md", ".claude/CLAUDE.md")
 LOCAL_NAME = "CLAUDE.local.md"
+AGENTS_NAME = "AGENTS.md"
+
+AGENTS_MD_SETTING = "agentsMd"
+AGENTS_MODE_NATIVE = "claude-md"
+AGENTS_MODE_OR = "claude-md-or-agents-md"
+AGENTS_MODE_BOTH = "claude-md-and-agents-md"
+AGENTS_MODES = (AGENTS_MODE_NATIVE, AGENTS_MODE_OR, AGENTS_MODE_BOTH)
+DEFAULT_AGENTS_MODE = AGENTS_MODE_OR
 
 InstructionType = Literal["Managed", "User", "Project", "Local", "AutoMem"]
 
@@ -269,9 +295,27 @@ def _path_chain(root: Path, cwd: Path) -> list[Path]:
     return chain[idx:]
 
 
-def _project_files(d: Path, warnings: list[str], *, include_conditional: bool = False) -> list[InstructionFile]:
+def agents_md_mode(ctx: SessionContext) -> str:
+    """02 R21a: the ``agentsMd`` setting; unknown or missing values mean the default."""
+    v = ctx.settings.get(AGENTS_MD_SETTING)
+    return v if v in AGENTS_MODES else DEFAULT_AGENTS_MODE
+
+
+def _native_names_for(d: Path, mode: str) -> list[str]:
+    """The top-of-directory instruction files to load from ``d``, in order (R15 + R21a)."""
+    native = [n for n in INSTRUCTION_NAMES if (d / n).is_file()]
+    if mode == AGENTS_MODE_NATIVE or not (d / AGENTS_NAME).is_file():
+        return native
+    if mode == AGENTS_MODE_BOTH:
+        return [AGENTS_NAME, *native]
+    return native or [AGENTS_NAME]  # "or": AGENTS.md stands in only when no native file exists
+
+
+def _project_files(
+    d: Path, warnings: list[str], *, include_conditional: bool = False, mode: str = AGENTS_MODE_NATIVE
+) -> list[InstructionFile]:
     out: list[InstructionFile] = []
-    for name in INSTRUCTION_NAMES:
+    for name in _native_names_for(d, mode):
         f = _load_file(d / name, "Project", warnings)
         if f is not None:
             out.append(f)
@@ -338,20 +382,21 @@ def discover_instruction_files(ctx: SessionContext, *, home: Path | None = None,
     cwd = Path(ctx.cwd)
     root = Path(ctx.extra.get("instructions_root") or cwd.anchor)
     wt = _worktree_roots(cwd)
+    mode = agents_md_mode(ctx)
     agents_md: list[str] = []
     for d in _path_chain(root, cwd):
         if wt is not None:
             wt_root, main_root = wt
             if _inside(d, main_root) and not _inside(d, wt_root):
                 continue  # inside the main checkout but outside this worktree
-        files += _project_files(d, warnings)
-        if (d / "AGENTS.md").is_file():
-            agents_md.append(str(d / "AGENTS.md"))  # detected, deliberately not loaded (R21)
+        files += _project_files(d, warnings, mode=mode)
+        if (d / AGENTS_NAME).is_file():
+            agents_md.append(str(d / AGENTS_NAME))  # detection record kept in every mode (R21/R21a)
 
     # 4. --add-dir (opt-in)
     if env_truthy(ctx.env, "CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD"):
         for d in ctx.additional_dirs:
-            files += _project_files(Path(d), warnings)
+            files += _project_files(Path(d), warnings, mode=mode)
 
     # 5. AutoMem
     if memory_enabled(ctx):
@@ -362,7 +407,9 @@ def discover_instruction_files(ctx: SessionContext, *, home: Path | None = None,
     excludes = [str(x) for x in as_list(ctx.settings.get("claudeMdExcludes"))]
     files = [f for f in files if not _excluded(f, excludes)]  # an excluded parent drops its imports too
     approve = bool(ctx.extra.get("approve_external_includes"))
-    out = [expand_imports(f, cwd=cwd, approve_external=approve, home=home) for f in files]
+    out = _drop_duplicate_agents_md(
+        [expand_imports(f, cwd=cwd, approve_external=approve, home=home) for f in files]
+    )
 
     per_file, total_limit = warn_limits(int(ctx.extra.get("context_window", 200_000)))
     total = 0
@@ -377,6 +424,33 @@ def discover_instruction_files(ctx: SessionContext, *, home: Path | None = None,
         out[0].warnings.extend(warnings)
     ctx.extra["agents_md_detected"] = agents_md
     return out
+
+
+def _norm(text: str) -> str:
+    return text.strip()
+
+
+def _drop_duplicate_agents_md(files: list[InstructionFile]) -> list[InstructionFile]:
+    """02 R21a de-duplication: a top-level AGENTS.md is dropped when its real path or
+    trimmed content already appears among the files kept so far (imports included)
+    or among the native files that follow it in the same directory."""
+    out: list[InstructionFile] = []
+    for i, f in enumerate(files):
+        if f.path.name == AGENTS_NAME and f.type == "Project":
+            seen_paths = {os.path.realpath(x.path) for g in out for x in g.flatten()}
+            seen_text = {_norm(x.content) for g in out for x in g.flatten()}
+            for g in files[i + 1 :]:  # in both mode the directory's native files follow it
+                if _same_dir_native(g, f.path.parent):
+                    seen_paths |= {os.path.realpath(x.path) for x in g.flatten()}
+                    seen_text |= {_norm(x.content) for x in g.flatten()}
+            if os.path.realpath(f.path) in seen_paths or _norm(f.content) in seen_text:
+                continue
+        out.append(f)
+    return out
+
+
+def _same_dir_native(f: InstructionFile, d: Path) -> bool:
+    return f.type == "Project" and any(f.path == d / n for n in INSTRUCTION_NAMES)
 
 
 # ================================================================ conditional rules (02 R19)
@@ -473,6 +547,7 @@ def nested_memory_attachments(ctx: SessionContext, touched: list[str]) -> list[A
     denied: Callable[[str], bool] = ctx.extra.get("read_denied") or (lambda _p: False)
     cwd = Path(ctx.cwd).resolve()
     rules = conditional_rules(ctx)
+    mode = agents_md_mode(ctx)
     found: list[Path] = []
     for t in touched:
         tp = Path(t) if os.path.isabs(t) else cwd / t
@@ -486,7 +561,7 @@ def nested_memory_attachments(ctx: SessionContext, touched: list[str]) -> list[A
             dirs.append(d)
             d = d.parent
         for d in reversed(dirs):
-            for name in (*INSTRUCTION_NAMES, LOCAL_NAME):
+            for name in (*_native_names_for(d, mode), LOCAL_NAME):
                 if (d / name).is_file():
                     found.append(d / name)
             rules_dir = d / ".claude" / "rules"
@@ -496,11 +571,14 @@ def nested_memory_attachments(ctx: SessionContext, touched: list[str]) -> list[A
                     if not (fm.present and fm.data.get("paths")):
                         found.append(p)
         found += [r.path for r in rules_for_touched_path(rules, str(tp), cwd=cwd)]
+    excludes = [str(x) for x in as_list(ctx.settings.get("claudeMdExcludes"))]
     out: list[Attachment] = []
     for p in dict.fromkeys(found):
         key = str(p)
         if key in sent:
             continue
+        if _excluded(InstructionFile(p, "Project", ""), excludes):
+            continue  # R21: excludes cover nested project files (AGENTS.md included)
         sent.add(key)
         if denied(key):
             out.append(Attachment("withheld_memory", {"path": key}))
@@ -513,8 +591,28 @@ def nested_memory_attachments(ctx: SessionContext, touched: list[str]) -> list[A
         except OSError:
             continue
         fm = parse_frontmatter(text)
-        out.append(Attachment("nested_memory", {"path": key, "content": fm.body if fm.present else text}))
+        body = fm.body if fm.present else text
+        if p.name == AGENTS_NAME and _agents_md_duplicates_native(p, body):
+            continue  # 02 R21a de-dup (both mode): same file or content as a native file here
+        out.append(Attachment("nested_memory", {"path": key, "content": body}))
     return out
+
+
+def _agents_md_duplicates_native(p: Path, body: str) -> bool:
+    for n in INSTRUCTION_NAMES:
+        q = p.parent / n
+        if not q.is_file():
+            continue
+        if os.path.realpath(q) == os.path.realpath(p):
+            return True
+        try:
+            text = q.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        fm = parse_frontmatter(text)
+        if _norm(fm.body if fm.present else text) == _norm(body):
+            return True
+    return False
 
 
 # ================================================================ rendering (02 R16)

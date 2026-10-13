@@ -24,7 +24,7 @@ Shipped binaries ──(local extraction, never committed)──► analysis not
 |---|---|---|---|---|
 | Extraction & analysis | analysis agents (Oct 2026) | locally extracted CLI 2.1.295 / desktop 2.31226.1 bundles | n/a | private analysis notes |
 | Spec | 4 spec-writer agents | private analysis notes | extracted bundles | `spec/` |
-| Clean implementation | 1 architect + 5 parallel implementers + 1 integrator, each a fresh agent restricted to a workspace containing only `spec/` | `spec/`, each other's `cleanroom/` code | analysis notes, extracted bundles, binaries | `cleanroom/` (harnesslab, ~33k lines incl. tests, 778 tests) |
+| Clean implementation | 1 architect + 5 parallel implementers + 1 integrator, each a fresh agent restricted to a workspace containing only `spec/` | `spec/`, each other's `cleanroom/` code | analysis notes, extracted bundles, binaries | `cleanroom/` (harnesslab, ~33k lines incl. tests, 787 tests) |
 | Similarity audit | repo maintainer (dirty side) | everything | n/a | an automated 8-word-sequence comparison of `spec/` and `cleanroom/` against the original bundles; flagged prose (file plus the short matched word sequence, 9 sequences in total) was handed to a clean-side editor, who reworded those sentences |
 | Publication | repo maintainer | everything | n/a | copied `cleanroom/` in unmodified |
 

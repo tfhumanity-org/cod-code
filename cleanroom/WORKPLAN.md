@@ -393,3 +393,9 @@ Other integration fixes: the CLI passes the real environment to the session (she
 and platform facts in the environment attachment); the demo model summarises tool
 results in one line; the terminal prompter shows the reason and honours
 `default_to_no`.
+
+Post-completion (spec revision 2): 02 R21a replaced the old "AGENTS.md is detected
+but not loaded" rule. `context/instructions.py` now loads AGENTS.md like a project
+CLAUDE.md, under the `agentsMd` setting (`claude-md` | `claude-md-or-agents-md`
+(default) | `claude-md-and-agents-md`); `ctx.extra["agents_md_detected"]` is kept.
+Tests: the `test_agents_md_*` cases in `tests/test_wp4_instructions_memory.py`.

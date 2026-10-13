@@ -52,7 +52,7 @@ def test_load_order_and_labels(ictx, home, tmp_path):
     _w(ictx.cwd / ".claude" / "rules" / "always.md", "unconditional rule")
     _w(ictx.cwd / ".claude" / "rules" / "py.md", "---\npaths: ['src/**']\n---\nconditional rule")
     _w(ictx.cwd / "CLAUDE.local.md", "local notes")
-    _w(ictx.cwd / "AGENTS.md", "agents")
+    _w(ictx.cwd / "AGENTS.md", "agents")  # cwd has a CLAUDE.md, so the default mode skips it (R21a)
     files = I.discover_instruction_files(ictx)
     contents = [f.content for f in files]
     assert contents == [
@@ -306,3 +306,119 @@ def test_memory_prompt_section_content():
     s = M.memory_prompt_section("/m")
     for needle in ("/m", "frontmatter", "Why:", "How to apply:", "[[name]]", "Do not save", "check that it still exists"):
         assert needle in s
+
+
+# ================================================================ AGENTS.md (02 R21a)
+
+
+def _agents_mode(ictx, mode, **extra):
+    ictx.settings = Settings.from_dict({I.AGENTS_MD_SETTING: mode, **extra}) if mode else Settings.from_dict(extra)
+
+
+def test_agents_md_default_mode_loads_when_no_native(ictx):
+    _w(ictx.cwd / "AGENTS.md", "cross-tool rules")
+    _agents_mode(ictx, None)
+    assert I.agents_md_mode(ictx) == I.AGENTS_MODE_OR == I.DEFAULT_AGENTS_MODE
+    files = I.discover_instruction_files(ictx)
+    assert [(f.path.name, f.type, f.content) for f in files] == [("AGENTS.md", "Project", "cross-tool rules")]
+    assert ictx.extra["agents_md_detected"] == [str(ictx.cwd / "AGENTS.md")]
+    # an unknown setting value falls back to the default
+    _agents_mode(ictx, "bogus")
+    assert I.agents_md_mode(ictx) == I.DEFAULT_AGENTS_MODE
+
+
+def test_agents_md_native_only_mode_detects_but_does_not_load(ictx):
+    _w(ictx.cwd / "AGENTS.md", "cross-tool rules")
+    _agents_mode(ictx, "claude-md")
+    assert I.discover_instruction_files(ictx) == []
+    assert ictx.extra["agents_md_detected"] == [str(ictx.cwd / "AGENTS.md")]
+
+
+def test_agents_md_or_mode_prefers_native(ictx):
+    _w(ictx.cwd / "AGENTS.md", "cross-tool rules")
+    _w(ictx.cwd / ".claude" / "CLAUDE.md", "native rules")  # .claude/CLAUDE.md counts as native too
+    _agents_mode(ictx, "claude-md-or-agents-md")
+    assert [f.content for f in I.discover_instruction_files(ictx)] == ["native rules"]
+
+
+def test_agents_md_both_mode_order_and_dedupe(ictx, tmp_path):
+    _w(tmp_path / "AGENTS.md", "same text\n")
+    _w(tmp_path / "CLAUDE.md", "same text")  # identical after trimming -> AGENTS.md dropped
+    _w(ictx.cwd / "AGENTS.md", "agents text")
+    _w(ictx.cwd / "CLAUDE.md", "claude text")
+    _w(ictx.cwd / "CLAUDE.local.md", "local")
+    _agents_mode(ictx, "claude-md-and-agents-md")
+    files = I.discover_instruction_files(ictx)
+    assert [(f.path, f.content) for f in files] == [
+        (tmp_path / "CLAUDE.md", "same text"),
+        (ictx.cwd / "AGENTS.md", "agents text"),  # before the native file, which therefore wins
+        (ictx.cwd / "CLAUDE.md", "claude text"),
+        (ictx.cwd / "CLAUDE.local.md", "local"),
+    ]
+
+
+def test_agents_md_both_mode_dedupes_symlink_and_import(ictx):
+    cwd = ictx.cwd
+    _w(cwd / "AGENTS.md", "shared rules")
+    (cwd / "CLAUDE.md").symlink_to(cwd / "AGENTS.md")
+    _agents_mode(ictx, "claude-md-and-agents-md")
+    assert [f.path.name for f in I.discover_instruction_files(ictx)] == ["CLAUDE.md"]
+    (cwd / "CLAUDE.md").unlink()
+    _w(cwd / "CLAUDE.md", "native, see @AGENTS.md")
+    flat = [x.path.name for f in I.discover_instruction_files(ictx) for x in f.flatten()]
+    assert flat == ["CLAUDE.md", "AGENTS.md"]  # loaded once, as the import
+
+
+def test_agents_md_per_directory_fallback(ictx, tmp_path):
+    _w(tmp_path / "CLAUDE.md", "parent native")
+    _w(tmp_path / "AGENTS.md", "parent agents")
+    _w(ictx.cwd / "AGENTS.md", "child agents")
+    files = I.discover_instruction_files(ictx)  # default mode
+    assert [f.content for f in files] == ["parent native", "child agents"]
+    assert ictx.extra["agents_md_detected"] == [str(tmp_path / "AGENTS.md"), str(ictx.cwd / "AGENTS.md")]
+
+
+def test_agents_md_label_imports_and_add_dir(ictx, tmp_path):
+    _w(ictx.cwd / "AGENTS.md", "rules @./more.md")
+    _w(ictx.cwd / "more.md", "imported detail")
+    extra = _w(tmp_path / "added" / "AGENTS.md", "added-dir agents")
+    ictx.additional_dirs = [str(extra.parent)]
+    ictx.env = {**ictx.env, "CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD": "1"}
+    ictx.extra["approve_external_includes"] = True
+    files = I.discover_instruction_files(ictx)
+    assert [x.content for f in files for x in f.flatten()] == ["rules @./more.md", "imported detail", "added-dir agents"]
+    text = I.render_instructions(files)
+    assert f"Contents of {ictx.cwd / 'AGENTS.md'} ({I.LABELS['Project']})" in text
+
+
+def test_agents_md_respects_excludes(ictx):
+    _w(ictx.cwd / "AGENTS.md", "cross-tool rules")
+    _w(ictx.cwd / "pkg" / "AGENTS.md", "pkg agents")
+    target = _w(ictx.cwd / "pkg" / "a.py", "")
+    _agents_mode(ictx, None, claudeMdExcludes=["**/AGENTS.md"])
+    assert I.discover_instruction_files(ictx) == []
+    assert I.nested_memory_attachments(ictx, [str(target)]) == []
+
+
+def test_agents_md_nested_lazy_loading(ictx):
+    cwd = ictx.cwd
+    _w(cwd / "pkg" / "AGENTS.md", "pkg agents")
+    _w(cwd / "pkg" / "sub" / "CLAUDE.md", "sub native")
+    _w(cwd / "pkg" / "sub" / "AGENTS.md", "sub agents")
+    target = _w(cwd / "pkg" / "sub" / "file.py", "")
+    assert I.discover_instruction_files(ictx) == []  # not loaded up front
+    out = I.nested_memory_attachments(ictx, [str(target)])
+    assert [a.payload["content"] for a in out] == ["pkg agents", "sub native"]  # default: per-dir fallback
+    assert I.nested_memory_attachments(ictx, [str(target)]) == []  # sent once
+
+    ictx.extra.pop("nested_sent")
+    _agents_mode(ictx, "claude-md")
+    assert [a.payload["content"] for a in I.nested_memory_attachments(ictx, [str(target)])] == ["sub native"]
+
+    ictx.extra.pop("nested_sent")
+    _w(cwd / "pkg" / "sub" / "AGENTS.md", "sub native\n")  # same content as the native file
+    _agents_mode(ictx, "claude-md-and-agents-md")
+    assert [a.payload["content"] for a in I.nested_memory_attachments(ictx, [str(target)])] == ["pkg agents", "sub native"]
+    ictx.extra.pop("nested_sent")
+    _w(cwd / "pkg" / "sub" / "AGENTS.md", "different")
+    assert [a.payload["content"] for a in I.nested_memory_attachments(ictx, [str(target)])] == ["pkg agents", "different", "sub native"]

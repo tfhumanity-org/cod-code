@@ -89,4 +89,4 @@ Core retry constants and backoff, heartbeat and stall timers, the output-limit r
 - Static comparison only: string-anchor counts in both builds, plus reading the surrounding code. Nothing was executed.
 - A naive comparison of string literals overstates what's new. Many settings are read in a way that doesn't show up as a quoted string, so every claim here was checked by searching both builds directly.
 - Raw evidence (offsets and identifiers) is kept privately and isn't published, per [`CLEANROOM.md`](../CLEANROOM.md).
-- `cleanroom/harnesslab` was built from spec revision 1, so it doesn't yet include R21a (AGENTS.md loading) or the changes above.
+- `cleanroom/harnesslab` implements spec revision 2 (including R21a, AGENTS.md loading). It doesn't yet implement the other changes above.

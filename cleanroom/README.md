@@ -96,7 +96,7 @@ compaction + resume, a subagent with a continuation handle, and a skill.
 | `api/retry.py`, `api/caching.py`, `api/request.py`, `api/accounting.py` | retries, one rolling cache breakpoint, request assembly, cost | 01 R14-R50 |
 | `context/prompt.py` | memoized sections, cache boundary, agent/fork prompts | 02 R1-R9, R35-R36; 06 R14, R26 |
 | `context/attachments.py` | parallel producers, diffs, throttled nudges, skill listing | 02 R10-R14, R30-R32, R37 |
-| `context/instructions.py`, `context/memory.py` | instruction files, `@imports`, auto-memory | 02 R15-R29 |
+| `context/instructions.py`, `context/memory.py` | instruction files (CLAUDE.md, cross-tool AGENTS.md via the `agentsMd` setting), `@imports`, auto-memory | 02 R15-R29, R21a |
 | `tools/base.py`, `tools/registry.py` | the `Tool` contract, lookup, deferral | 03 §2.1, R54-R55 |
 | `tools/pipeline.py`, `tools/executor.py` | per-call pipeline, streaming scheduler | 03 R1-R14 |
 | `tools/ledger.py`, `tools/edit_match.py`, `tools/output.py` | read ledger, forgiving edits, output budgets/spill | 03 R17-R33 |
