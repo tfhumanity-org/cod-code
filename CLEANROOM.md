@@ -24,8 +24,9 @@ Shipped binaries ──(local extraction, never committed)──► analysis not
 |---|---|---|---|---|
 | Extraction & analysis | analysis agents (Oct 2026) | locally extracted CLI 2.1.295 / desktop 2.31226.1 bundles | n/a | private analysis notes |
 | Spec | 4 spec-writer agents | private analysis notes | extracted bundles | `spec/` |
-| Implementation | fresh implementer agents in a separate workspace that contained only a copy of `spec/` | `spec/` | analysis notes, extracted bundles, original binaries | `cleanroom/` |
-| Integration | repo maintainer | everything | n/a | copied `cleanroom/` in unmodified except for packaging |
+| Clean implementation | 1 architect + 5 parallel implementers + 1 integrator, each a fresh agent restricted to a workspace containing only `spec/` | `spec/`, each other's `cleanroom/` code | analysis notes, extracted bundles, binaries | `cleanroom/` (harnesslab, ~33k lines incl. tests, 778 tests) |
+| Similarity audit | repo maintainer (dirty side) | everything | n/a | an automated 8-word-sequence comparison of `spec/` and `cleanroom/` against the original bundles; flagged prose (file plus the short matched word sequence, 9 sequences in total) was handed to a clean-side editor, who reworded those sentences |
+| Publication | repo maintainer | everything | n/a | copied `cleanroom/` in unmodified |
 
 ## Rules the spec obeys
 - No verbatim prompt, tool-description, error-message or code text from the original.
@@ -33,6 +34,12 @@ Shipped binaries ──(local extraction, never committed)──► analysis not
 - No minified identifiers, internal function or class names, file offsets, telemetry event names, feature-flag IDs, internal codenames, internal URLs, or unreleased-product details.
 - Interface-level facts *are* kept because they're needed for compatibility: public tool names and fields, hook events, settings keys, env vars, file formats, and numeric thresholds.
 - Algorithms are written as the spec writers' own pseudocode.
+
+## Verification
+- **Identifier scan.** `spec/` contains none of the banned identifier classes: internal event or flag names, codenames, minified names, offsets.
+- **8-gram overlap scan** against the original bundles.
+  - Remaining matches in `spec/` and `cleanroom/` are interface facts needed for compatibility: JSON schemas and field names, API wire formats, enum values, env var names, settings-source names, command and bundle-ID lists, regex character classes.
+  - Prose matches were reworded by a clean-side editor.
 
 ## Honest limits
 - **Procedural, not physical.** "Clean" here means the implementers ran in a fresh context with access only to a workspace containing `spec/`, plus instructions not to look elsewhere. It wasn't a separate legal team on separate machines.

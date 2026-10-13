@@ -3,9 +3,20 @@
 **A clean-room study of how Anthropic's Claude Code harness works, plus an agent-run audit that improves *your* harness with it.**
 
 - **`spec/`:** clean-room functional specs of Claude Code (CLI 2.1.295) and the Claude desktop app's Code tab (2.31226.1). They cover behaviour, data shapes, constants and pseudocode for the agent loop, prompt caching, tools, permissions and sandbox, compaction, multi-agent, MCP/skills/plugins, the host protocol and computer use. They contain no original code or prompt text ([how](CLEANROOM.md)).
-- **`cleanroom/`:** `harnesslab`, a readable Python reimplementation built *only* from `spec/`, which you can run and poke through (in progress).
+- **`cleanroom/`:** `harnesslab`, a readable, runnable Python reimplementation (~33k lines, 778 offline tests) built *only* from `spec/`. Read it like a textbook: every module cites the spec requirement it implements.
 - **`audit/`:** a gated **Explore → Plan → Execute** playbook, a 15-dimension rubric, subagent briefs and output templates. A coding agent uses them to audit your harness and ship improvements.
 - **`tools/extract/` + [`EXPLORE.md`](EXPLORE.md):** unpack *your own installed copy* to dig for more. Nothing proprietary is hosted here.
+
+## Poke through the clean-room harness
+
+```bash
+cd cleanroom
+uv run --with pytest pytest -q              # 778 tests, offline, ~7 s
+uv run python -m harnesslab.cli             # demo REPL against a scripted model
+uv run python examples/permission_playground.py
+```
+
+Start with [`cleanroom/README.md`](cleanroom/README.md). It includes a guided tour of one turn through about 10 files, and lists what's simulated in `pseudo/` (computer use, desktop host, sandbox profiles) and what's deferred.
 
 ## Use it: paste this into your coding agent
 

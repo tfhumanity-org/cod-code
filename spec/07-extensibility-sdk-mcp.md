@@ -176,7 +176,7 @@ Permission modes: `default`, `acceptEdits`, `bypassPermissions` (requires an exp
 
 ### Plugins
 - **R14** Manifest per §2.4. Load errors MUST be reported in `system/init.plugin_errors[]` with an open-set `type` (e.g. path-not-found, manifest-validation-error, dependency-unsatisfied, hook-load-failed); hosts MUST treat unknown types as generic failures. *Observed.*
-- **R15** A plugin skill declaring security-sensitive hook events (PreToolUse, PermissionRequest) at the frontmatter top level instead of under `hooks` MUST load with no hooks and no allowed-tools. Plugin-granted allowed-tools MUST pass a policy gate. *Observed.*
+- **R15** A plugin skill declaring security-sensitive hook events (PreToolUse, PermissionRequest) at the frontmatter top level instead of under `hooks` MUST be loaded stripped of all hooks and all allowed-tools grants. Plugin-granted allowed-tools MUST pass a policy gate. *Observed.*
 
 ### MCP
 - **R16** Managed settings MAY deliver only `http`/`sse` servers with https URLs, no `${VAR}` expansion, and no control characters. *Observed.*
@@ -451,7 +451,7 @@ def on_line(frame):
 9. **T9 Fail closed on undeclared host capabilities.** Missing dialog kinds mean "cannot display"; permission answers can carry edited input and persistent rule updates with explicit destinations; host hook callbacks are generation-tracked.
 10. **T10 Tunnel in-host tools instead of spawning servers.** In-process MCP servers reached via a message tunnel, with pre-sent handshake manifests to skip a round-trip.
 11. **T11 Give the statusline a rich, stable JSON contract.** Model, workspace, cost, context, rate limits with reset times, cache warmth and miss causes; debounce, schedule refreshes at known change points, gate on trust.
-12. **T12 Make plugin manifests explicit and fenced.** Conventional directories by default but explicit paths disable auto-loading; sha-pinned binaries; allowlisted settings merges; misplaced security hooks load as no hooks and no grants; managed MCP limited to https without env expansion.
+12. **T12 Make plugin manifests explicit and fenced.** Conventional directories by default but explicit paths disable auto-loading; sha-pinned binaries; allowlisted settings merges; misplaced security hooks are dropped along with any grants; managed MCP limited to https without env expansion.
 
 ---
 

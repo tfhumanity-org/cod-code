@@ -19,6 +19,7 @@ You are an agent reading **cod-code**: clean-room functional specs of Claude Cod
 ```
 spec/INDEX.md          architecture diagram, top patterns P01–P28, file map
 spec/00-…10-*.md       functional specs; each ends with "Harness design takeaways" (cite as NN#Tk)
+cleanroom/                  harnesslab: Python reimplementation built only from spec/ (see cleanroom/README.md)
 audit/PLAYBOOK.md           phases, gates, explorer/planner groupings
 audit/RUBRIC.md             D1–D15, 0–3 maturity signals, reference IDs per dimension
 audit/agents/*.md           subagent briefs (fill the {PLACEHOLDERS}, pass as the prompt)
