@@ -4,6 +4,8 @@ You are an agent reading **cod-code**: clean-room functional specs of Claude Cod
 
 ## What you are probably here to do
 
+**Answer a question about using Claude Code well.** Start at [`guide/README.md`](guide/README.md), the practical advice with spec citations. Cite chapter and spec IDs.
+
 **Audit and improve a harness** (most common). Follow [`audit/PLAYBOOK.md`](audit/PLAYBOOK.md) exactly:
 - Phase 0 map → Phase 1 explore (5 parallel read-only explorers) → scorecard → Phase 2 plan (3 parallel read-only planners) → PLAN.md → **user approval** → Phase 3 execute (isolated executors) → REPORT.md.
 - The target is the user's project. This repo is read-only reference material.
@@ -17,6 +19,7 @@ You are an agent reading **cod-code**: clean-room functional specs of Claude Cod
 
 ## Layout
 ```
+guide/                      practical advice for using Claude Code (7 chapters + top 20), every tip cites spec/
 spec/INDEX.md          architecture diagram, top patterns P01–P28, file map
 spec/00-…10-*.md       functional specs; each ends with "Harness design takeaways" (cite as NN#Tk)
 cleanroom/                  harnesslab: Python reimplementation built only from spec/ (see cleanroom/README.md)

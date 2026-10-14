@@ -1,11 +1,31 @@
 # cod-code
 
-**A clean-room study of how Anthropic's Claude Code harness works, plus an agent-run audit that improves *your* harness with it.**
+**Get more out of Claude Code by understanding how it works inside.** Practical advice, a clean-room spec of the harness, and a runnable Python reimplementation.
 
-- **`spec/`:** clean-room functional specs of Claude Code (CLI 2.1.295) and the Claude desktop app's Code tab (2.31226.1). They cover behaviour, data shapes, constants and pseudocode for the agent loop, prompt caching, tools, permissions and sandbox, compaction, multi-agent, MCP/skills/plugins, the host protocol and computer use. They contain no original code or prompt text ([how](CLEANROOM.md)).
-- **`cleanroom/`:** `harnesslab`, a readable, runnable Python reimplementation (~33k lines, 787 offline tests) built *only* from `spec/`. Read it like a textbook: every module cites the spec requirement it implements.
-- **`audit/`:** a gated **Explore → Plan → Execute** playbook, a 15-dimension rubric, subagent briefs and output templates. A coding agent uses them to audit your harness and ship improvements.
-- **`tools/extract/` + [`EXPLORE.md`](EXPLORE.md):** unpack *your own installed copy* to dig for more. Nothing proprietary is hosted here.
+## Start here: [the guide](guide/README.md)
+
+Seven chapters of practical advice, every tip linked to the spec requirement behind it:
+[instructions & memory](guide/01-instructions-and-memory.md) ·
+[permissions & settings](guide/02-permissions-and-settings.md) ·
+[hooks recipes](guide/03-hooks-recipes.md) ·
+[context, cost & long sessions](guide/04-context-cost-and-long-sessions.md) ·
+[tools & long-running work](guide/05-tools-and-long-running-work.md) ·
+[agents, skills & parallel work](guide/06-agents-skills-and-parallel-work.md) ·
+[agent-friendly repos](guide/07-agent-friendly-repos.md)
+
+A taste, from [the top 20](guide/README.md#the-top-20):
+- Monorepo? Put rules in `.claude/rules/*.md` with `paths:` frontmatter. They stay out of context until Claude touches matching files.
+- Hooks fail *open* by default. Exit 2 blocks; set `onFailure: "block"` for guards that matter.
+- Every Bash call is a fresh shell: the working directory carries over, `export` doesn't.
+- Avoid long idle gaps mid-task. Once the prompt cache expires you pay full price to re-send the whole conversation.
+- Never ask Claude to `sleep`-poll. Long commands move to the background and report back.
+
+## Also in this repo
+
+- **[`spec/`](spec/INDEX.md):** clean-room functional specs of Claude Code (CLI 2.1.295) and the desktop app's Code tab. They cover behaviour, constants and pseudocode for the agent loop, caching, tools, permissions, compaction, multi-agent, MCP/skills, host protocol and computer use, with no original code or prompt text ([how](CLEANROOM.md)).
+- **[`cleanroom/`](cleanroom/README.md):** `harnesslab`, a readable, runnable Python reimplementation (~33k lines, 787 offline tests) built *only* from `spec/`.
+- **[`audit/`](audit/PLAYBOOK.md):** a copy-paste prompt (below) that has your coding agent audit *your own* agent harness against the spec and ship improvements.
+- **[`tools/extract/`](tools/extract/README.md) + [`EXPLORE.md`](EXPLORE.md):** unpack *your own installed copy* to dig further. Nothing proprietary is hosted here.
 
 ## How the harness evolved
 
@@ -22,7 +42,7 @@ uv run python examples/permission_playground.py
 
 Start with [`cleanroom/README.md`](cleanroom/README.md). It includes a guided tour of one turn through about 10 files, and lists what's simulated in `pseudo/` (computer use, desktop host, sandbox profiles) and what's deferred.
 
-## Use it: paste this into your coding agent
+## Building your own harness? Paste this into your coding agent
 
 Open your agent (Claude Code, or any agent that can run shell commands and spawn subagents) **in the root of the project whose harness you want to improve**. Then paste:
 
