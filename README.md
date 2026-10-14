@@ -1,3 +1,5 @@
+![cod-code](cod_code.jpg)
+
 # cod-code
 
 **Get more out of Claude Code by understanding how it works inside.** Practical advice, a clean-room spec of the harness, and a runnable Python reimplementation.
